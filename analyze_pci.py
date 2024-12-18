@@ -1,5 +1,5 @@
-import json, re
-import pandas
+import json
+import pandas as pd
 from sortedcontainers import SortedDict
 
 def read_gpu_output(filename):
@@ -11,7 +11,7 @@ gpu0_output = read_gpu_output("GPUtimeline_0.json")
 gpu1_output = read_gpu_output("GPUtimeline_1.json")
 gpu2_output = read_gpu_output("GPUtimeline_2.json")
 gpu3_output = read_gpu_output("GPUtimeline_3.json")
-pci_stats = pandas.read_csv("./pci_stats/gpu_pcie_throughput.csv")
+pci_stats = pd.read_csv("./pci_stats/gpu_pcie_throughput.csv")
 
 def sort_gpu_output(gpu_output):
     d = SortedDict()
@@ -35,7 +35,16 @@ def traverse_gpu_output(d, pci_event_timing):
     return relevant_layers
 
 # Identify interesting events in pci_stats and find relevent layers
+data = {
+    "time": [],
+    "gpu_id": [],
+    "to": [],
+    "from": [],
+    "layers": []
+}
 def process_gpu_output(i, gpu_id, pci_stats, gpu_dict):
+    global data
+    
     gpu_to = getattr(pci_stats, f"gpu{gpu_id}_to")
     gpu_from = getattr(pci_stats, f"gpu{gpu_id}_from")
     label = None
@@ -49,9 +58,19 @@ def process_gpu_output(i, gpu_id, pci_stats, gpu_dict):
     timing = pci_stats.time
     relevant_layers = traverse_gpu_output(gpu_dict, timing)
     print(f"{label}, line {i}, {pci_stats.time} | Relevant layers for GPU {gpu_id} (to: {gpu_to}, from: {gpu_from}): {relevant_layers}")
+    
+    data["time"].append(pci_stats.time)
+    data["gpu_id"].append(gpu_id)
+    data["from"].append(gpu_from)
+    data["to"].append(gpu_to)
+    data["layers"].append("|".join(relevant_layers))
+    
 
 gpu_dicts = [q0, q1, q2, q3]
 
 for i, row in enumerate(pci_stats.itertuples()):
     for gpu_id, gpu_dict in enumerate(gpu_dicts):
         process_gpu_output(i, gpu_id, row, gpu_dict)
+        
+df = pd.DataFrame(data)
+df.to_csv("pcie_analysis.csv", index=False)
