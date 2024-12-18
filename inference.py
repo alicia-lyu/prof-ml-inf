@@ -1,19 +1,20 @@
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 import torch.nn as nn
 import torch
-import time
+import time, sys
 from functools import partial
 import json
 import fitz 
 import pandas as pd
 ## Define hook functions
 
-very_beginning = torch.cuda.Event(enable_timing=True, )
-very_beginning.record()
+run_type = None
+if len(sys.argv) > 1:
+    run_type = int(sys.argv[1])
+    print(f"Run type: {run_type}")
 
 counters = {}
 layer_timings = {}
-layer_starts_approx = {} # for absolute time recorded by time.time()
 from mpi4py import MPI
 
 comm = MPI.COMM_WORLD
@@ -31,15 +32,21 @@ if gpu_id == 0:
 else:
     run_id = None
 run_id = comm.bcast(run_id)
+very_beginning = torch.cuda.Event(enable_timing=True, )
+very_beginning_cpu_time = None
 
 def take_time_pre(layer_name, module, input):
-    global counters, layer_timings, gpu_id, layer_starts_approx
+    global counters, layer_timings, gpu_id, very_beginning_cpu_time, very_beginning
+    
+    if len(counters.keys()) == 0:
+        very_beginning.record()
+        very_beginning_cpu_time = time.time()
+        print(f'Very beginning: {very_beginning_cpu_time}')
 
     # Initialize counters and timing storage for the layer
     if layer_name not in counters:
         counters[layer_name] = 0
         layer_timings[layer_name] = []
-        layer_starts_approx[layer_name] = []
 
     # Increment the counter for this layer
     counters[layer_name] += 1
@@ -50,7 +57,6 @@ def take_time_pre(layer_name, module, input):
 
     # Store the start event for this invocation
     layer_timings[layer_name].append({"start_event": start_event, "end_event": None})
-    layer_starts_approx[layer_name].append(time.time())
 
 def take_time(layer_name, module, input, output):
     global layer_timings
@@ -129,7 +135,7 @@ encode_end.record()
 # Generate the summary
 model_start.record()
 
-summary_ids = model.generate(inputs)
+summary_ids = model.generate(inputs, max_length=999999, min_length=1)
 model_end.record()
 
 # Decode the model output
@@ -145,16 +151,21 @@ layer_timings_abs = {}
 for layer_name, timings in layer_timings.items():
     layer_invocation_times[layer_name] = []
     layer_timings_abs[layer_name] = []
-    for timing_entry, start_approx in zip(timings, layer_starts_approx[layer_name]):
+    for timing_entry in timings:
         if timing_entry["start_event"] and timing_entry["end_event"]:
             elapsed_time = timing_entry["start_event"].elapsed_time(timing_entry["end_event"])  # In milliseconds
             layer_invocation_times[layer_name].append(elapsed_time)
-            layer_timings_abs[layer_name].append((start_approx, start_approx + elapsed_time / 1000))
+            layer_timings_abs[layer_name].append((
+                very_beginning.elapsed_time(timing_entry["start_event"]) / 1000 + very_beginning_cpu_time,
+                very_beginning.elapsed_time(timing_entry["end_event"])/ 1000 + very_beginning_cpu_time
+            ))
 
-output_file = f"GPUoutput_{gpu_id}.json"
-
-with open(output_file, "w") as file:
-    json.dump(layer_timings_abs, file, indent=4)
+if run_type == 2: # PCIe
+    timeline_file = f"GPUtimeline_{gpu_id}.json"
+    with open(timeline_file, "w") as file:
+        json.dump(layer_timings_abs, file, indent=4)
+else:
+    print("Not updating timelines.")
 
 output_table = f"t5base_output_allGPUs.csv"
 custom_separator = "|"
@@ -164,7 +175,8 @@ for layer_name, timings in layer_invocation_times.items():
     # Join all timings for this layer using the custom separator
     data[layer_name] = custom_separator.join(map(str, timings))
 df = pd.DataFrame([data])
-df.to_csv(output_table, mode='a', index=False, header=not pd.io.common.file_exists(output_table))
+if run_type == 1: # default type
+    df.to_csv(output_table, mode='a', index=False, header=not pd.io.common.file_exists(output_table))
 
 encode_time = encode_start.elapsed_time(encode_end)
 model_time = model_start.elapsed_time(model_end)

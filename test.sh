@@ -12,7 +12,7 @@ runs=20
 for ((i=1; i<=runs; i++))
 do
     # Run the Python script and capture the output
-    result=$(mpirun -np 4 python3 "$python_script")
+    result=$(mpirun -np 4 python3 "$python_script" 1)
     # echo $result
     # exit
     # Extract the timing results (assuming they follow the format: "Timing: value1,value2,...")

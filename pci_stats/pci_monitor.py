@@ -15,14 +15,14 @@ def monitor_gpu_pcie_to_dataframe():
     df = pd.DataFrame()  # Initialize an empty DataFrame
     data = {
         'time': [],
-        'gpu0-to': [],
-        'gpu0-from': [],
-        'gpu1-to': [],
-        'gpu1-from': [],
-        'gpu2-to': [],
-        'gpu2-from': [],
-        'gpu3-to': [],
-        'gpu3-from': [],
+        'gpu0_to': [],
+        'gpu0_from': [],
+        'gpu1_to': [],
+        'gpu1_from': [],
+        'gpu2_to': [],
+        'gpu2_from': [],
+        'gpu3_to': [],
+        'gpu3_from': [],
     }
     
     try:
@@ -46,22 +46,22 @@ def monitor_gpu_pcie_to_dataframe():
             t = time.time()
             tx0, rx0 = get_pcie_throughput(handle0)
             data['time'].append(t)
-            data['gpu0-from'].append(tx0)
-            data['gpu0-to'].append(rx0)
+            data['gpu0_from'].append(tx0)
+            data['gpu0_to'].append(rx0)
             tx1, rx1 = get_pcie_throughput(handle1)
-            data['gpu1-from'].append(tx1)
-            data['gpu1-to'].append(rx1)
+            data['gpu1_from'].append(tx1)
+            data['gpu1_to'].append(rx1)
             tx2, rx2 = get_pcie_throughput(handle2)
-            data['gpu2-from'].append(tx2)
-            data['gpu2-to'].append(rx2)
+            data['gpu2_from'].append(tx2)
+            data['gpu2_to'].append(rx2)
             tx3, rx3 = get_pcie_throughput(handle3)
-            data['gpu3-from'].append(tx3)
-            data['gpu3-to'].append(rx3)
+            data['gpu3_from'].append(tx3)
+            data['gpu3_to'].append(rx3)
             
-            print("\t".join(map(str, [f"{t:.2f}", tx0, rx0, tx1, rx1, tx2, rx2, tx3, rx3])))
+            print("\t".join(map(str, [f"{t:.2f}", rx0, tx0, rx1,tx1, rx2, tx2, rx3, tx3])))
             
             
-            if len(data['time']) > 20 and tx0 <= 50 and rx0 <= 50 and tx1 <= 50 and rx1 <= 50 and tx2 <= 50 and rx2 <= 50 and tx3 <= 50 and rx3 <= 50:
+            if count_down > 5 and len(data['time']) > 20 and tx0 <= 150 and rx0 <= 150 and tx1 <= 150 and rx1 <= 150 and tx2 <= 150 and rx2 <= 150 and tx3 <= 150 and rx3 <= 150:
                 count_down = 5
  
     except Exception as e:
@@ -71,11 +71,9 @@ def monitor_gpu_pcie_to_dataframe():
         pynvml.nvmlShutdown()
        
         df = pd.DataFrame(data)
+        
     return df
 
 if __name__ == "__main__":
-    # Monitor PCIe throughput and save to a DataFrame
     data = monitor_gpu_pcie_to_dataframe()
-
-    # Optionally, save to a CSV file
     data.to_csv("gpu_pcie_throughput.csv", index=False)
