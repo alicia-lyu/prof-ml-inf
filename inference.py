@@ -7,13 +7,13 @@ import json
 import fitz 
 import pandas as pd
 ## Define hook functions
-start_events = {}
-end_events = {}
 
-take_time_dict = {}
-count = 0
+very_beginning = torch.cuda.Event(enable_timing=True, )
+very_beginning.record()
+
 counters = {}
 layer_timings = {}
+layer_starts_approx = {} # for absolute time recorded by time.time()
 from mpi4py import MPI
 
 comm = MPI.COMM_WORLD
@@ -33,12 +33,13 @@ else:
 run_id = comm.bcast(run_id)
 
 def take_time_pre(layer_name, module, input):
-    global counters, layer_timings, gpu_id
+    global counters, layer_timings, gpu_id, layer_starts_approx
 
     # Initialize counters and timing storage for the layer
     if layer_name not in counters:
         counters[layer_name] = 0
         layer_timings[layer_name] = []
+        layer_starts_approx[layer_name] = []
 
     # Increment the counter for this layer
     counters[layer_name] += 1
@@ -49,6 +50,7 @@ def take_time_pre(layer_name, module, input):
 
     # Store the start event for this invocation
     layer_timings[layer_name].append({"start_event": start_event, "end_event": None})
+    layer_starts_approx[layer_name].append(time.time())
 
 def take_time(layer_name, module, input, output):
     global layer_timings
@@ -96,8 +98,6 @@ model_name = "t5-base"
 model = T5ForConditionalGeneration.from_pretrained(model_name).to(device)
 tokenizer = T5Tokenizer.from_pretrained(model_name)
 
-x = False
-count = 0
 print("model.named_modules:", model.named_modules())
 for name, module in model.named_modules():
     if name == "":
@@ -129,7 +129,7 @@ encode_end.record()
 # Generate the summary
 model_start.record()
 
-summary_ids = model.generate(inputs, max_length=2, min_length=1, num_beams=4)
+summary_ids = model.generate(inputs)
 model_end.record()
 
 # Decode the model output
@@ -139,28 +139,22 @@ decode_end.record()
 
 # Ensure all events are complete
 torch.cuda.synchronize()
-gpu_layer_times = {}
-
-# for layer_name in start_events.keys():
-#     elapsed_time = start_events[layer_name].elapsed_time(end_events[layer_name])  # Convert ms to seconds
-#     gpu_layer_times[layer_name] = elapsed_time
 
 layer_invocation_times = {}
+layer_timings_abs = {}
 for layer_name, timings in layer_timings.items():
     layer_invocation_times[layer_name] = []
-    for timing_entry in timings:
+    layer_timings_abs[layer_name] = []
+    for timing_entry, start_approx in zip(timings, layer_starts_approx[layer_name]):
         if timing_entry["start_event"] and timing_entry["end_event"]:
             elapsed_time = timing_entry["start_event"].elapsed_time(timing_entry["end_event"])  # In milliseconds
             layer_invocation_times[layer_name].append(elapsed_time)
-        
+            layer_timings_abs[layer_name].append((start_approx, start_approx + elapsed_time / 1000))
 
-# output_file = "output.json"
-# with open(output_file, "w") as file:
-#     json.dump(take_time_dict, file, indent=4)
 output_file = f"GPUoutput_{gpu_id}.json"
 
 with open(output_file, "w") as file:
-    json.dump(layer_invocation_times, file, indent=4)
+    json.dump(layer_timings_abs, file, indent=4)
 
 output_table = f"t5base_output_allGPUs.csv"
 custom_separator = "|"

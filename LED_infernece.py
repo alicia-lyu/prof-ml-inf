@@ -5,7 +5,6 @@ import time
 from functools import partial
 import json
 import fitz 
-from ocr import run_ocr
 ## Define hook functions
 start_events = {}
 end_events = {}

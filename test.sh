@@ -3,7 +3,7 @@
 # Variables
 python_script="inference.py"  # Replace with the name of your Python file
 output_csv="timing_results.csv"
-runs=10
+runs=20
 
 # Initialize CSV file with header
 # echo "Run,IO,OCR,Encode,Model,Decode" > "$output_csv"
