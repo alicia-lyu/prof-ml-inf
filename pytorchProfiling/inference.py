@@ -142,7 +142,7 @@ end_event = torch.cuda.Event(enable_timing=True)
 start_event.record()
 inputs = tokenizer.encode(input_text, padding=True, return_tensors="pt").to(device) 
 
-summary_ids = model.generate(inputs, max_length=2, min_length=1, num_beams=4)
+summary_ids = model.generate(inputs, max_length=99999999, min_length=1, num_beams=4)
 
 # Decode the model output
 summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)

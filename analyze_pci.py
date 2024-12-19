@@ -50,7 +50,7 @@ def process_gpu_output(i, gpu_id, pci_stats, gpu_dict):
     label = None
     if gpu_to > 100000 or gpu_from > 100000:
         label = 'major data transfer'
-    elif gpu_to > 5000 or gpu_from > 5000:
+    elif gpu_to > 5000 or gpu_from > 20000:
         label = 'minor data transfer'
     else:
         return

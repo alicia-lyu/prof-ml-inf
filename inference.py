@@ -8,6 +8,7 @@ import fitz
 import pandas as pd
 ## Define hook functions
 
+
 run_type = None
 if len(sys.argv) > 1:
     run_type = int(sys.argv[1])
@@ -32,6 +33,7 @@ if gpu_id == 0:
 else:
     run_id = None
 run_id = comm.bcast(run_id)
+io_t1 = time.time()
 very_beginning = torch.cuda.Event(enable_timing=True, )
 very_beginning_cpu_time = None
 
@@ -71,12 +73,10 @@ def take_time(layer_name, module, input, output):
 
 
 def extract_all_text(pdf_path):
-    global io_time, ocr_time
+    global io_time, ocr_time, io_t1
     # Open the PDF document
-    t1 = time.time()
+    
     pdf_document = fitz.open(pdf_path)
-    t2 = time.time()
-    io_time = 1000 * (t2 - t1)
     all_text = ""
 
     # Loop through all pages and concatenate text
@@ -106,16 +106,16 @@ tokenizer = T5Tokenizer.from_pretrained(model_name)
 
 print("model.named_modules:", model.named_modules())
 for name, module in model.named_modules():
-    if name == "":
-       
-        module.register_forward_pre_hook( partial(take_time_pre, "encoder-decoder-transition") )
-        module.register_forward_hook( partial(take_time, "encoder-decoder-transition") )
+    if name == "":  
+        # module.register_forward_pre_hook( partial(take_time_pre, "encoder-decoder-transition") )
+        # module.register_forward_hook( partial(take_time, "encoder-decoder-transition") )
+        pass
     else:
         module.register_forward_pre_hook( partial(take_time_pre, name) )
         module.register_forward_hook( partial(take_time, name) )
 
-
-
+io_t2 = time.time()
+io_time = 1000 * (io_t2 - io_t1)
 # Prepend "summarize:" to the input text as required by T5
 # input_text = "summarize: " + text_to_summarize
 
@@ -198,6 +198,7 @@ csv_filename = f"timing_{gpu_id}.csv"
 
 # Write to the CSV file
 with open(csv_filename, mode="a", newline="") as csv_file:
+    print(f"Saving results to stage results to {csv_filename}")
     writer = csv.writer(csv_file)
     writer.writerow(headers)
 # print(timing_data)
