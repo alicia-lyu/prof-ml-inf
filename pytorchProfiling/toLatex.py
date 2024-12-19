@@ -9,6 +9,12 @@ def extractData(dict1, dict2, layer):
     l1 = sorted(dict1[layer], key=lambda x: x['Name'])
     l2 = sorted(dict2[layer], key=lambda x: x['Name'])
     var = {}
+    print("\\begin{table*}[h!]")
+    print("\\centering")
+    print("\\scalebox{0.9}{")
+    print("\\begin{tabular}{|l|c|c|c|c|c|c|c|}")
+    print("\\hline")
+    print("\\textbf{Kernel Name} & \\textbf{CPU-0 (ms)} & \\textbf{CPU-1 (ms)} & \\textbf{CPU\\% Var} & \\textbf{GPU-0 (ms)} & \\textbf{GPU-1 (ms)} & \\textbf{GPU\\% Var} & \\textbf{Calls} \\\\ \\hline")
     for i1, i2 in zip(l1,l2):
         # print(i1['Name'], i2["Name"])
 
@@ -38,6 +44,15 @@ def extractData(dict1, dict2, layer):
                 "Calls": i1["Calls"]
                 
             }
+        name = i1['Name'].replace("_", "\\_")
+        if cpu1 != 0 or cuda1 != 0:
+            print( "\\textbf{"+  f"{name}" + "}" + f" & {round(cpu1,2)} & {round(cpu2,2)} & {round(cpu_var,2)} & {round(cuda1,2)} & {round(cuda2,2)} & {round(cuda_var,2)} & {i1['Calls']} \\\\ \hline")
+    my_layer = layer.replace("_", "\\_")
+    print("\\end{tabular}}")
+    print("\\vspace{5pt}")
+    print("\\centering")
+    print("\\caption{" + f"Kernel breakdown for {my_layer}" + ".}")
+    print("\\end{table*}")
     return var
             
 
@@ -56,11 +71,13 @@ layers = ["encoder.block.0.layer.0.SelfAttention.q", "encoder.block.0.layer.0.Se
 for layer in layers:
     my_var = extractData(dict1, dict2,layer)
     df = pd.DataFrame.from_dict(my_var, orient='index')
-    print(layer)
-    print("___________________________")
-    for _, row in df.iterrows():
-        print(row['CPU1 (us)'])
-        exit()
+    print()
+    # print(layer)
+    # print("___________________________")
+    # for _, row in df.iterrows():
+    #     print()
+        # print(row['CPU1 (us)'])
+        # exit()
     # print(df)
     # print()
 # Print the dictionaries

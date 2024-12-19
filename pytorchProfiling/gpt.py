@@ -82,6 +82,7 @@ class LayerProfiler:
                         module(*input)
                     except:
                        pass
+                torch.cuda.synchronize()
           
            
             self.log_results(prof, layer_type, layer_name)
@@ -89,26 +90,51 @@ class LayerProfiler:
         return hook
 
     def log_results(self, profiler_result, layer_type, layer_name):
-        table = profiler_result.key_averages()
-        results = []
 
-        for event in table:
-            entry = {
-                "Name": event.key,  # Operation name
-                "CPU Time Total (us)": event.cpu_time_total if hasattr(event, "cpu_time_total") else 0,
-                "CUDA Time Total (us)": event.device_time_total if hasattr(event, "device_time_total") else 0,
-                "Calls": event.count if hasattr(event, "count") else 0,
-                "Self CPU Time Total (us)": event.self_cpu_time_total if hasattr(event, "self_cpu_time_total") else 0,
-                "Self CUDA Time Total (us)": event.self_device_time_total if hasattr(event, "self_device_time_total") else 0,
-                "CPU Memory Used (bytes)": event.cpu_memory_usage if hasattr(event, "cpu_memory_usage") else 0,
-                "CUDA Memory Used (bytes)": event.self_device_memory_usage if hasattr(event, "self_device_memory_usage") else 0,
-                "Input Shapes": event.input_shapes if hasattr(event, "input_shapes") else None,
-            }
+        # for event in profiler_result.events():
+        #     if str(event.device_type) == "DeviceType.CUDA":
+        #         print(event)
+        #         print()
+        # print("------------------------------")
+        # table = profiler_result.key_averages()
+        # results = []
+        # print(layer_name)
+        # print("***" * 30)
+        for event in profiler_result.events():
+           
+            if str(event.device_type) == "DeviceType.CUDA":
+                # print(dir(event))
+                # print(event.self_device_time_total_str, event.cpu_time_total_str)
+                # if "ms" in event.device_time_total_str:
+                #     print(event.self_device_time_total_str, event.device_time)
+                #     exit()
+                # print()
+                # exit()
+                # print(event.key, event.device_time_total)
+                # print(event.name)
+                # print(dir(event))
+                entry = {
+                    "Name": event.key,  # Operation name
+                    "CPU Time (us)": 0, 
+                    "CUDA Time (us)": event.cuda_time,
+                }
+            else:
+                entry = {
+                    "Name": event.key,  # Operation name
+                    "CPU Time (us)": event.cpu_time, 
+                    "CUDA Time (us)":0,
+                    
+                }
+                
 
+            # print()
             if layer_name in self.layer_kernel_dict.keys():
                     self.layer_kernel_dict[layer_name].append(entry)
             else: 
                 self.layer_kernel_dict[layer_name] = [entry]
+        # print()
+        # print(profiler_result.key_averages().table())
+        # exit()
             # break
         # with open(self.log_file, "a") as f:
         #     f.write(f"Layer Type: {layer_type}\n")
