@@ -108,6 +108,13 @@ def extract_all_text(pdf_path):
 pdf_path = "pdfs/pipedream.pdf"
 input_text = "summarize: " + extract_all_text(pdf_path)
 
+io_t2 = time.time()
+io_time = (io_t2 - io_t1) * 1000
+print("io_t2:", io_t2, "io_time:", io_time)
+
+model_setup_start = encode_start = torch.cuda.Event(enable_timing=True, )
+model_setup_end = encode_start = torch.cuda.Event(enable_timing=True, )
+model_setup_start.record()
 
 # Load T5-small model and tokenizer
 model_name = "t5-base"
@@ -125,11 +132,7 @@ if run_type == 1 or run_type == 2:
             module.register_forward_pre_hook( partial(take_time_pre, name) )
             module.register_forward_hook( partial(take_time, name) )
 
-io_t2 = time.time()
-io_time = (io_t2 - io_t1) * 1000
-print("io_t2:", io_t2, "io_time:", io_time)
-# Prepend "summarize:" to the input text as required by T5
-# input_text = "summarize: " + text_to_summarize
+model_setup_end.record()
 
 encode_start = torch.cuda.Event(enable_timing=True, )
 encode_end = torch.cuda.Event(enable_timing=True, )
@@ -193,6 +196,7 @@ if run_type == 1:
 else:
     print("Not updating t5base_output_allGPUs.csv")
 
+setup_time = model_setup_start.elapsed_time(model_setup_end)
 encode_time = encode_start.elapsed_time(encode_end)
 model_time = model_start.elapsed_time(model_end)
 decode_time = decode_start.elapsed_time(decode_end)
@@ -200,13 +204,14 @@ decode_time = decode_start.elapsed_time(decode_end)
 if run_type == 3 or run_type == 4:
     timing_data = {
         "IO": io_time,
+        "ModelSetup": setup_time,
         "Tokenization": encode_time,
-        "Model": model_time,
+        "ModelInference": model_time,
         "De-Tokenization": decode_time
     }
-    data_string = f"{io_time},{encode_time},{model_time},{decode_time}\n"
+    data_string = f"{io_time},{setup_time},{encode_time},{model_time},{decode_time}\n"
 
-    headers = "io,tokenization,model,de-tokenization\n"
+    headers = "io,model_setup,tokenization,model,de-tokenization\n"
     import os
     # Filepath for the CSV
     if num_gpus == 1 or run_type == 3:
