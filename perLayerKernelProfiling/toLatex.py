@@ -12,9 +12,9 @@ def extractData(dict1, dict2, layer):
     print("\\begin{table*}[h!]")
     print("\\centering")
     print("\\scalebox{0.9}{")
-    print("\\begin{tabular}{|l|c|c|c|c|c|c|c|}")
+    print("\\begin{tabular}{|l|c|c|c|c|c|c|}")
     print("\\hline")
-    print("\\textbf{Kernel Name} & \\textbf{CPU-0 (ms)} & \\textbf{CPU-1 (ms)} & \\textbf{CPU\\% Var} & \\textbf{GPU-0 (ms)} & \\textbf{GPU-1 (ms)} & \\textbf{GPU\\% Var} & \\textbf{Calls} \\\\ \\hline")
+    print("\\textbf{Kernel Name} & \\textbf{CPU-0 (ms)} & \\textbf{CPU-1 (ms)} & \\textbf{CPU\\% Var} & \\textbf{GPU-0 (ms)} & \\textbf{GPU-1 (ms)} & \\textbf{GPU\\% Var} \\\\ \\hline")
     for i1, i2 in zip(l1,l2):
         # print(i1['Name'], i2["Name"])
 
@@ -22,31 +22,28 @@ def extractData(dict1, dict2, layer):
         # print(i1)
         # print()
         # print(i2)
-        cpu1 = i1['CPU Time Total (us)']
-        cpu2 = i2['CPU Time Total (us)']
+        
+        cpu1 = round(i1['CPU Time (us)'],2)
+        cpu2 = round(i2['CPU Time (us)'],2)
         cpu_var = 0
         if cpu1 != 0:
-            cpu_var = 100 *(abs(cpu1 - cpu2) / ((cpu1 + cpu2) / 2))
-        
-        cuda1 = i1['CUDA Time Total (us)']
-        cuda2 = i2['CUDA Time Total (us)']
+            cpu_var = round(100 *(abs(cpu1 - cpu2) / ((cpu1 + cpu2) / 2)),2)
+        else:
+            cpu1 = "N/A"
+            cpu2 = "N/A"
+            cpu_var = "N/A"
+        cuda1 = round(i1['CUDA Time (us)'],2)
+        cuda2 = round(i2['CUDA Time (us)'],2)
         cuda_var = 0
         if cuda1 != 0:
-            cuda_var = 100 *(abs(cuda1 - cuda2) / ((cuda1 + cuda2) / 2))
-        if cuda_var != 0 or cpu_var!=0:
-            var[i1['Name']] = {
-                "CPU1 (us)": round(cpu1, 2),
-                "CPU2 (us)": round(cpu2,2),
-                "CPU_%Var": round(cpu_var,4),
-                "GPU1 (us)": round(cuda1,2),
-                "GPU2 (us)": round(cuda2,2),
-                "GPU_%Var": round(cuda_var,4),
-                "Calls": i1["Calls"]
-                
-            }
+            cuda_var = round(100 *(abs(cuda1 - cuda2) / ((cuda1 + cuda2) / 2)),2)
+        else:
+            cuda1 = "N/A"
+            cuda2 = "N/A"
+            cuda_var = "N/A"
         name = i1['Name'].replace("_", "\\_")
         if cpu1 != 0 or cuda1 != 0:
-            print( "\\textbf{"+  f"{name}" + "}" + f" & {round(cpu1,2)} & {round(cpu2,2)} & {round(cpu_var,2)} & {round(cuda1,2)} & {round(cuda2,2)} & {round(cuda_var,2)} & {i1['Calls']} \\\\ \hline")
+            print( "\\textbf{"+  f"{name}" + "}" + f" & {cpu1} & {cpu2} & {cpu_var} & {cuda1} & {cuda2} & {cuda_var} \\\\ \hline")
     my_layer = layer.replace("_", "\\_")
     print("\\end{tabular}}")
     print("\\vspace{5pt}")
@@ -57,14 +54,14 @@ def extractData(dict1, dict2, layer):
             
 
 # File paths for the two JSON files
-file_path1 = 'data_0.json'
-file_path2 = 'data_3.json'
+file_path1 = 'blocking_data_0.json'
+file_path2 = 'blocking_data_3.json'
 
 # Load the JSON data into dictionaries
 dict1 = load_json(file_path1)
 dict2 = load_json(file_path2)
 
-layers = ["encoder.block.0.layer.0.SelfAttention.q", "encoder.block.0.layer.0.SelfAttention.k", "encoder.block.0.layer.0.SelfAttention.v", "encoder.block.0.layer.0.SelfAttention.relative_attention_bias", "encoder.block.0.layer.0.SelfAttention.o"]
+layers = ["encoder.block.0.layer.0.layer_norm", "encoder.block.0.layer.0.SelfAttention.q", "encoder.block.0.layer.0.SelfAttention.k", "encoder.block.0.layer.0.SelfAttention.v", "encoder.block.0.layer.0.SelfAttention.relative_attention_bias", "encoder.block.0.layer.0.SelfAttention.o", "encoder.block.0.layer.0.dropout"]
 # layers = ["encoder.block.3.layer.0.SelfAttention.k", "encoder.block.3.layer.0.SelfAttention.o", "encoder.block.3.layer.0.SelfAttention.v","encoder.block.3.layer.0.SelfAttention.q"]
 # layers = ["encoder.block.3.layer.0.SelfAttention.q"]
 

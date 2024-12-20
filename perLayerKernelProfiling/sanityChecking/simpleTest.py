@@ -31,12 +31,13 @@ with profile(activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA], record_sh
     outputs = model(inputs)
 
 for event in prof.events():
-    if str(event.device_type) == "DeviceType.CUDA":
-        # print()
-        print("GPU: ", event.name, event.cuda_time)
-        # print(event.cuda_time)
-    else:
-        # print("CPU")
-        print("CPU: ", event.name, event.cpu_time)
+    print(f"{event.device_type}: ", event.name, event.cuda_time, event.cpu_time)
+    # if str(event.device_type) == "DeviceType.CUDA":
+    #     # print()
+    #     print("GPU: ", event.name, event.cuda_time)
+    #     # print(event.cuda_time)
+    # else:
+    #     # print("CPU")
+    #     print("CPU: ", event.name, event.cpu_time)
 
     print()
